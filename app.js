@@ -49,16 +49,17 @@
   async function loadJobs() {
     const box=$("#jobResults"); if(!box) return;
     box.innerHTML='<div class="resultbox">Loading approved vacancies…</div>';
-    let q=client.from("jobs").select("id,title,company_name,county,town,category,description,requirements,application_contact,application_url,source_type,source_name,posted_at,deadline").eq("status","published").or("deadline.is.null,deadline.gte."+new Date().toISOString().slice(0,10)).order("posted_at",{ascending:false}).limit(40);
-    const county=$("#county").value, town=$("#town").value.trim(), cat=$("#category").value, word=$("#keyword").value.trim().replace(/[%_*]/g,"");
+    let q=client.from("jobs").select("id,title,company_name,county,town,category,description,requirements,application_contact,application_url,source_type,source_name,employment_type,posted_at,deadline").eq("status","published").or("deadline.is.null,deadline.gte."+new Date().toISOString().slice(0,10)).order("posted_at",{ascending:false}).limit(40);
+    const county=$("#county").value, town=$("#town").value.trim(), cat=$("#category").value, type=$("#employmentType").value, word=$("#keyword").value.trim().replace(/[%_*]/g,"");
     if(county) q=q.eq("county",county);
     if(town) q=q.ilike("town","%"+town+"%");
     if(cat) q=q.eq("category",cat);
+    if(type) q=q.eq("employment_type",type);
     if(word) q=q.ilike("title","%"+word+"%");
     const {data,error}=await q;
     if(error){box.innerHTML='<div class="resultbox">Vacancies could not load. Please refresh and try again.</div>';return;}
     if(!data.length){box.innerHTML='<div class="resultbox"><b>No approved vacancies match this search yet.</b><br>Verified listings will appear here after review. Try another county or category.</div>';return;}
-    box.innerHTML=data.map(j=>'<article class="panel"><div class="panel-head"><div><h3>'+escape(j.title)+'</h3><small>'+escape(j.company_name)+' · '+escape(j.town)+', '+escape(j.county)+'</small></div><span class="tag">'+escape(j.category)+'</span></div><p style="font-size:13px;color:#c1d2c5">'+escape(j.description)+'</p>'+(j.requirements?'<p style="font-size:12px;color:#a8b3a5"><b>Requirements:</b> '+escape(j.requirements)+'</p>':'')+'<div class="tag">Source: '+escape(j.source_name||j.source_type)+'</div><div class="tag">Posted: '+new Date(j.posted_at).toLocaleDateString()+'</div>'+(j.deadline?'<div class="tag">Deadline: '+escape(j.deadline)+'</div>':'')+(j.application_contact?'<p style="font-size:12px">Apply/contact: <b>'+escape(j.application_contact)+'</b></p>':'')+(j.application_url?'<a class="btn small alt" target="_blank" rel="noopener" href="'+escape(j.application_url)+'">Apply ↗</a>':'')+'<div style="border-top:1px solid #34452f;margin-top:14px;padding-top:12px"><b style="font-size:13px">Comments</b><div id="comments-'+j.id+'" style="display:grid;gap:7px;margin:10px 0">Loading comments…</div><form class="comment-form" data-job="'+j.id+'"><div class="field"><label>ADD A COMMENT</label><textarea name="comment" maxlength="2000" required placeholder="Share useful information or ask a question" style="min-height:65px"></textarea></div><button class="btn small">Post comment</button></form></div></article>').join("");
+    box.innerHTML=data.map(j=>'<article class="panel"><div class="panel-head"><div><h3>'+escape(j.title)+'</h3><small>'+escape(j.company_name)+' · '+escape(j.town)+', '+escape(j.county)+'</small></div><span class="tag">'+escape(j.employment_type==="government"?"Government / public": "Private sector")+'</span><span class="tag">'+escape(j.category)+'</span></div><p style="font-size:13px;color:#c1d2c5">'+escape(j.description)+'</p>'+(j.requirements?'<p style="font-size:12px;color:#a8b3a5"><b>Requirements:</b> '+escape(j.requirements)+'</p>':'')+'<div class="tag">Source: '+escape(j.source_name||j.source_type)+'</div><div class="tag">Posted: '+new Date(j.posted_at).toLocaleDateString()+'</div>'+(j.deadline?'<div class="tag">Deadline: '+escape(j.deadline)+'</div>':'')+(j.application_contact?'<p style="font-size:12px">Apply/contact: <b>'+escape(j.application_contact)+'</b></p>':'')+(j.application_url?'<a class="btn small alt" target="_blank" rel="noopener" href="'+escape(j.application_url)+'">Apply ↗</a>':'')+'<div style="border-top:1px solid #34452f;margin-top:14px;padding-top:12px"><b style="font-size:13px">Comments</b><div id="comments-'+j.id+'" style="display:grid;gap:7px;margin:10px 0">Loading comments…</div><form class="comment-form" data-job="'+j.id+'"><div class="field"><label>ADD A COMMENT</label><textarea name="comment" maxlength="2000" required placeholder="Share useful information or ask a question" style="min-height:65px"></textarea></div><button class="btn small">Post comment</button></form></div></article>').join("");
     data.forEach(j=>loadComments(j.id));
     box.querySelectorAll(".comment-form").forEach(f=>f.addEventListener("submit",postComment));
   }
@@ -92,7 +93,7 @@
     e.preventDefault();e.stopImmediatePropagation();
     if(!user){alert("Please sign in before submitting a vacancy.");showAuth();return;}
     const a=Array.from(e.currentTarget.querySelectorAll("input,select,textarea"));
-    const {error}=await client.from("employer_submissions").insert({user_id:user.id,company_name:a[0].value.trim(),contact_name:user.user_metadata?.full_name || user.email,county:a[1].value,town:a[2].value.trim(),job_title:a[3].value.trim(),category:a[4].value,description:a[5].value.trim(),application_contact:a[6].value.trim(),contact_email:user.email});
+    const {error}=await client.from("employer_submissions").insert({user_id:user.id,company_name:a[0].value.trim(),contact_name:user.user_metadata?.full_name || user.email,county:a[1].value,town:a[2].value.trim(),job_title:a[3].value.trim(),category:a[4].value,employment_type:a[5].value,description:a[6].value.trim(),application_contact:a[7].value.trim(),contact_email:user.email});
     if(error){alert(error.message);return;}
     e.currentTarget.reset();alert("Vacancy submitted. It will appear publicly only after admin review.");
   },true);
@@ -128,7 +129,7 @@
     const {data,error}=await client.from("employer_submissions").select("*").eq("id",id).single();
     if(error){alert(error.message);return;}
     if(decision==="approved"){
-      const {error:jobError}=await client.from("jobs").insert({title:data.job_title,company_name:data.company_name,county:data.county,town:data.town,category:data.category,description:data.description,requirements:data.requirements,application_contact:data.application_contact,application_url:data.application_url,source_type:"employer",source_name:data.company_name,status:"published",created_by:user.id});
+      const {error:jobError}=await client.from("jobs").insert({title:data.job_title,company_name:data.company_name,county:data.county,town:data.town,category:data.category,employment_type:data.employment_type||"private",description:data.description,requirements:data.requirements,application_contact:data.application_contact,application_url:data.application_url,source_type:"employer",source_name:data.company_name,status:"published",created_by:user.id});
       if(jobError){alert(jobError.message);return;}
     }
     const {error:updateError}=await client.from("employer_submissions").update({status:decision,reviewed_at:new Date().toISOString()}).eq("id",id);
@@ -152,7 +153,7 @@
   $("#adminJobForm").addEventListener("submit",async e=>{
     e.preventDefault();if(!user||user.app_metadata?.role!=="admin"){alert("Admin access required.");return;}
     const v=Object.fromEntries(new FormData(e.currentTarget).entries());
-    const {error}=await client.from("jobs").insert({title:v.title,company_name:v.company,county:v.county,town:v.town,category:v.category,description:v.description,requirements:v.requirements,application_contact:v.contact,application_url:v.apply_url||null,source_type:"public_source",source_name:v.source,source_url:v.source_url||null,deadline:v.deadline||null,status:"published",created_by:user.id});
+    const {error}=await client.from("jobs").insert({title:v.title,company_name:v.company,county:v.county,town:v.town,category:v.category,employment_type:v.employment_type,description:v.description,requirements:v.requirements,application_contact:v.contact,application_url:v.apply_url||null,source_type:"public_source",source_name:v.source,source_url:v.source_url||null,deadline:v.deadline||null,status:"published",created_by:user.id});
     if(error){alert(error.message);return;}e.currentTarget.reset();alert("Vacancy published.");loadJobs();
   });
   document.addEventListener("click",e=>{
