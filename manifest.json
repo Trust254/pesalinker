@@ -1,16 +1,11 @@
 {
-  "name": "PesaLinker — Smart Money Platform",
-  "short_name": "PesaLinker",
+  "name": "KAZI LINKER - Jobs across Kenya",
+  "short_name": "KAZI LINKER",
+  "description": "Find jobs across all 47 counties of Kenya and request professional CV writing.",
   "start_url": "/",
+  "scope": "/",
   "display": "standalone",
-  "background_color": "#07110e",
-  "theme_color": "#07110e",
-  "icons": [
-    {
-      "src": "/icon.svg",
-      "sizes": "any",
-      "type": "image/svg+xml",
-      "purpose": "any maskable"
-    }
-  ]
+  "background_color": "#07110d",
+  "theme_color": "#07110d",
+  "icons": [{"src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable"}]
 }
