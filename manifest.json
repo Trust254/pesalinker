@@ -7,10 +7,18 @@
   "scope": "/",
   "display": "standalone",
   "orientation": "portrait",
-  "background_color": "#071b17",
-  "theme_color": "#0b241e",
-  "categories": ["business", "productivity"],
+  "background_color": "#070b09",
+  "theme_color": "#101a12",
+  "categories": [
+    "business",
+    "productivity"
+  ],
   "icons": [
-    {"src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable"}
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
   ]
 }
