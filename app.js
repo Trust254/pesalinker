@@ -12,6 +12,7 @@
     user=u; app.classList.add("entered");
     $("#userAvatar").textContent=((u.user_metadata?.full_name || u.email || "K").trim()[0] || "K").toUpperCase();
     $("#signOutBtn").style.display="inline-flex";
+    const isAdmin=u.app_metadata?.role==="admin"; $("#adminNav").style.display=isAdmin?"flex":"none"; $("#adminNavMobile").style.display=isAdmin?"grid":"none";
     window.showPage("home"); loadJobs();
   };
   const showAuth = () => { app.classList.remove("entered"); $("#signOutBtn").style.display="none"; window.authMode("signin"); };
@@ -23,7 +24,7 @@
       const {data,error}=await client.auth.signUp({
         email:$("#regEmail").value.trim(),
         password:$("#regPassword").value,
-        options:{data:{full_name:$("#regName").value.trim()}}
+        options:{data:{full_name:$("#regName").value.trim()},emailRedirectTo:window.location.origin}
       });
       if(error) throw error;
       if(data.session) enter(data.user);
@@ -95,5 +96,70 @@
     if(error){alert(error.message);return;}
     e.currentTarget.reset();alert("Vacancy submitted. It will appear publicly only after admin review.");
   },true);
+
+  async function loadMyCv() {
+    const box=$("#myCvRequests"); if(!box || !user)return;
+    box.textContent="Loading your CV requests…";
+    const {data,error}=await client.from("cv_requests").select("id,target_role,payment_status,status,created_at,cv_storage_path").eq("user_id",user.id).order("created_at",{ascending:false});
+    if(error){box.textContent="Could not load your CV requests.";return;}
+    if(!data.length){box.innerHTML='<small style="color:#a8b3a5">You have not submitted a CV request yet.</small>';return;}
+    box.innerHTML=data.map(r=>'<div class="job" style="align-items:flex-start"><div><b>'+escape(r.target_role)+'</b><small>Submitted '+new Date(r.created_at).toLocaleDateString()+'</small><div class="tag">Payment: '+escape(r.payment_status)+'</div><div class="tag">Status: '+escape(r.status)+'</div></div><div>'+(r.cv_storage_path&&r.status==="completed"?'<button class="btn small" data-download="'+escape(r.cv_storage_path)+'">Download CV</button>':'')+'</div></div>').join("");
+    box.querySelectorAll("[data-download]").forEach(b=>b.addEventListener("click",async()=>{const {data,error}=await client.storage.from("cv-documents").createSignedUrl(b.dataset.download,3600);if(error){alert(error.message);return;}window.open(data.signedUrl,"_blank","noopener");}));
+  }
+  async function loadAdmin() {
+    if(!user || user.app_metadata?.role!=="admin"){alert("This account does not have admin access.");window.showPage("home");return;}
+    const employers=$("#adminEmployers"), cvs=$("#adminCvs");
+    employers.textContent="Loading employer submissions…";cvs.textContent="Loading CV requests…";
+    const [er,cr]=await Promise.all([
+      client.from("employer_submissions").select("*").eq("status","pending").order("created_at",{ascending:true}),
+      client.from("cv_requests").select("*").order("created_at",{ascending:true})
+    ]);
+    if(er.error) employers.textContent="Could not load employer submissions.";
+    else employers.innerHTML=er.data.length?er.data.map(x=>'<div class="panel" style="padding:13px"><b>'+escape(x.job_title)+' · '+escape(x.company_name)+'</b><small>'+escape(x.town)+', '+escape(x.county)+' · '+escape(x.application_contact)+'</small><p style="font-size:12px">'+escape(x.description)+'</p><button class="btn small" data-employer-approve="'+x.id+'">Approve & publish</button> <button class="btn ghost small" data-employer-reject="'+x.id+'">Reject</button></div>').join(""):'<small>No pending employer submissions.</small>';
+    if(cr.error) cvs.textContent="Could not load CV requests.";
+    else cvs.innerHTML=cr.data.length?cr.data.map(x=>'<div class="panel" style="padding:13px"><b>'+escape(x.full_name)+' · '+escape(x.target_role)+'</b><small>'+escape(x.email)+' · '+escape(x.mpesa_transaction_code)+'</small><div class="tag">Payment: '+escape(x.payment_status)+'</div><div class="tag">Status: '+escape(x.status)+'</div><div style="display:flex;gap:7px;flex-wrap:wrap;margin-top:9px"><button class="btn small" data-cv-confirm="'+x.id+'">Confirm payment</button><button class="btn ghost small" data-cv-reject="'+x.id+'">Reject</button></div><div class="field"><label>UPLOAD COMPLETED CV (PDF/DOCX)</label><input type="file" accept=".pdf,.doc,.docx" data-cv-file="'+x.id+'"></div><button class="btn small" data-cv-upload="'+x.id+'" data-user="'+x.user_id+'" '+(x.payment_status!=="confirmed"?"disabled":"")+'>Upload & mark complete</button></div>').join(""):'<small>No CV requests yet.</small>';
+    employers.querySelectorAll("[data-employer-approve]").forEach(b=>b.addEventListener("click",()=>reviewEmployer(b.dataset.employerApprove,"approved")));
+    employers.querySelectorAll("[data-employer-reject]").forEach(b=>b.addEventListener("click",()=>reviewEmployer(b.dataset.employerReject,"rejected")));
+    cvs.querySelectorAll("[data-cv-confirm]").forEach(b=>b.addEventListener("click",()=>updateCv(b.dataset.cvConfirm,{payment_status:"confirmed",status:"in_progress"})));
+    cvs.querySelectorAll("[data-cv-reject]").forEach(b=>b.addEventListener("click",()=>updateCv(b.dataset.cvReject,{payment_status:"rejected",status:"rejected"})));
+    cvs.querySelectorAll("[data-cv-upload]").forEach(b=>b.addEventListener("click",()=>uploadCv(b)));
+  }
+  async function reviewEmployer(id,decision) {
+    const {data,error}=await client.from("employer_submissions").select("*").eq("id",id).single();
+    if(error){alert(error.message);return;}
+    if(decision==="approved"){
+      const {error:jobError}=await client.from("jobs").insert({title:data.job_title,company_name:data.company_name,county:data.county,town:data.town,category:data.category,description:data.description,requirements:data.requirements,application_contact:data.application_contact,application_url:data.application_url,source_type:"employer",source_name:data.company_name,status:"published",created_by:user.id});
+      if(jobError){alert(jobError.message);return;}
+    }
+    const {error:updateError}=await client.from("employer_submissions").update({status:decision,reviewed_at:new Date().toISOString()}).eq("id",id);
+    if(updateError){alert(updateError.message);return;} loadAdmin();
+  }
+  async function updateCv(id,changes) {
+    const {error}=await client.from("cv_requests").update(changes).eq("id",id);
+    if(error){alert(error.message);return;} loadAdmin();
+  }
+  async function uploadCv(button) {
+    const id=button.dataset.cvUpload, owner=button.dataset.user, fileInput=$('[data-cv-file="'+id+'"]'), file=fileInput.files[0];
+    if(!file){alert("Choose the completed CV file first.");return;}
+    const clean=file.name.replace(/[^a-zA-Z0-9._-]/g,"_"), path=owner+"/"+id+"/"+clean;
+    button.disabled=true;
+    const {error:uploadError}=await client.storage.from("cv-documents").upload(path,file,{upsert:true,contentType:file.type||"application/octet-stream"});
+    if(uploadError){button.disabled=false;alert(uploadError.message);return;}
+    const {error}=await client.from("cv_requests").update({cv_storage_path:path,status:"completed",payment_status:"confirmed"}).eq("id",id);
+    button.disabled=false;
+    if(error){alert(error.message);return;} loadAdmin();
+  }
+  $("#adminJobForm").addEventListener("submit",async e=>{
+    e.preventDefault();if(!user||user.app_metadata?.role!=="admin"){alert("Admin access required.");return;}
+    const v=Object.fromEntries(new FormData(e.currentTarget).entries());
+    const {error}=await client.from("jobs").insert({title:v.title,company_name:v.company,county:v.county,town:v.town,category:v.category,description:v.description,requirements:v.requirements,application_contact:v.contact,application_url:v.apply_url||null,source_type:"public_source",source_name:v.source,source_url:v.source_url||null,deadline:v.deadline||null,status:"published",created_by:user.id});
+    if(error){alert(error.message);return;}e.currentTarget.reset();alert("Vacancy published.");loadJobs();
+  });
+  document.addEventListener("click",e=>{
+    const b=e.target.closest("[data-page]");if(!b)return;
+    if(b.dataset.page==="account")loadMyCv();
+    if(b.dataset.page==="admin")loadAdmin();
+  });
+
   client.auth.getSession().then(({data})=>{if(data.session)enter(data.session.user);});
 })();
