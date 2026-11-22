@@ -1,11 +1,16 @@
 {
-  "name": "KAZI LINKER - Jobs across Kenya",
+  "id": "/",
+  "name": "KAZI LINKER — Jobs & Career Support",
   "short_name": "KAZI LINKER",
-  "description": "Find jobs across all 47 counties of Kenya and request professional CV writing.",
-  "start_url": "/",
+  "description": "Discover job opportunities across all 47 counties of Kenya and access professional CV writing.",
+  "start_url": "/#home",
   "scope": "/",
   "display": "standalone",
-  "background_color": "#07110d",
-  "theme_color": "#07110d",
-  "icons": [{"src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable"}]
+  "orientation": "portrait",
+  "background_color": "#071b17",
+  "theme_color": "#0b241e",
+  "categories": ["business", "productivity"],
+  "icons": [
+    {"src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable"}
+  ]
 }
