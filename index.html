@@ -95,6 +95,7 @@
 </main>
 <nav class="mobile-nav workspace" id="mobileNav"><button class="active" data-page="home"><span>⌂</span>Home</button><button data-page="jobs"><span>⌕</span>Jobs</button><button data-page="cv"><span>▤</span>CV</button><button data-page="employers"><span>▣</span>Employers</button><button data-page="about"><span>✳</span>More</button></nav>
 </div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.119.2"></script>
 <script>
 const counties=["Baringo","Bomet","Bungoma","Busia","Elgeyo-Marakwet","Embu","Garissa","Homa Bay","Isiolo","Kajiado","Kakamega","Kericho","Kiambu","Kilifi","Kirinyaga","Kisii","Kisumu","Kitui","Kwale","Laikipia","Lamu","Machakos","Makueni","Mandera","Marsabit","Meru","Migori","Mombasa","Murang'a","Nairobi","Nakuru","Nandi","Narok","Nyamira","Nyandarua","Nyeri","Samburu","Siaya","Taita-Taveta","Tana River","Tharaka-Nithi","Trans Nzoia","Turkana","Uasin Gishu","Vihiga","Wajir","West Pokot"];
 function fillCounty(el,first){el.innerHTML='<option value="">'+first+'</option>'+counties.map(c=>'<option>'+c+'</option>').join('')}
